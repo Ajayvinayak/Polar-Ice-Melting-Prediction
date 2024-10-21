@@ -28,6 +28,8 @@ All predictions are provided with a **95% confidence interval**, giving a range 
 ## Data
 
 The dataset used for this project is derived from **NASA's Earth Science data**, covering the period **1979 to 2022**. It includes historical data on the **melting and freezing patterns** of the Arctic's polar ice, focusing on various Arctic regions, each of which is critical in the global climate system.
+https://earth.gsfc.nasa.gov/cryo/data/arctic-sea-ice-melt 
+
 
 ### Key Regions
 
