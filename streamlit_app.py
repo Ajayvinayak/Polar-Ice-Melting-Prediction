@@ -1,151 +1,114 @@
 import streamlit as st
 import pandas as pd
 import math
-from pathlib import Path
 
 # Set the title and favicon that appear in the Browser's tab bar.
 st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
+    page_title='Sea Ice Data Dashboard',
+    page_icon=':snowflake:',  # This is an emoji shortcode. Could be a URL too.
 )
 
-# -----------------------------------------------------------------------------
+# ---------------------------------------------------------------------
 # Declare some useful functions.
 
 @st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+def get_sea_data(uploaded_file):
+    """Grab sea region data from an uploaded CSV file."""
+    
+    # Read the uploaded CSV file
+    raw_df = pd.read_csv(uploaded_file)
+    
+    return raw_df
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+# File upload widget
+uploaded_file = st.file_uploader("Upload your sea region data CSV file", type="csv")
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+if uploaded_file is not None:
+    sea_df = get_sea_data(uploaded_file)
+    
+    # ---------------------------------------------------------------------
+    # Draw the actual page
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+    # Set the title that appears at the top of the page.
+    '''
+    # :snowflake: Sea Ice Data Dashboard
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
+    Browse data for various sea regions over the years. This dataset provides measurements for
+    regions such as the Sea of Okhotsk, Bering Sea, Hudson Bay, and more, spanning multiple decades.
+    '''
+
+    # Add some spacing
+    ''
+    ''
+
+    # Get the min and max years from the data
+    min_value = sea_df['yyyy'].min()
+    max_value = sea_df['yyyy'].max()
+
+    # Year selection slider
+    from_year, to_year = st.slider(
+        'Which years are you interested in?',
+        min_value=min_value,
+        max_value=max_value,
+        value=[min_value, max_value]
     )
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+    # Extract sea region names (columns excluding 'yyyy' and 'All Regions')
+    regions = sea_df.columns[1:-1]
 
-    return gdp_df
+    if not len(regions):
+        st.warning("Select at least one sea region")
 
-gdp_df = get_gdp_data()
+    # Multi-select for sea regions
+    selected_regions = st.multiselect(
+        'Which sea regions would you like to view?',
+        regions,
+        ['Sea of Okhotsk', 'Bering Sea', 'Hudson Bay']
+    )
 
-# -----------------------------------------------------------------------------
-# Draw the actual page
+    # Filter the data
+    filtered_sea_df = sea_df[
+        (sea_df['yyyy'] >= from_year) & (sea_df['yyyy'] <= to_year)
+    ]
 
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
+    st.header('Sea Ice Coverage Over Time', divider='gray')
 
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
-
-
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
-
-st.header(f'GDP in {to_year}', divider='gray')
-
-''
-
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
-
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
+    # Plot the line chart
+    if selected_regions:
+        st.line_chart(
+            filtered_sea_df.set_index('yyyy')[selected_regions],
         )
+    else:
+        st.warning("Please select at least one sea region to visualize.")
+
+    ''
+
+    # Summary for the selected years
+    first_year = filtered_sea_df[filtered_sea_df['yyyy'] == from_year]
+    last_year = filtered_sea_df[filtered_sea_df['yyyy'] == to_year]
+
+    st.header(f'Sea Ice Coverage in {to_year}', divider='gray')
+
+    # Display metrics for each selected sea region
+    cols = st.columns(len(selected_regions))
+
+    for i, region in enumerate(selected_regions):
+        col = cols[i % len(cols)]
+
+        with col:
+            first_coverage = first_year[region].iat[0] / 1000  # Scaling the value (if needed)
+            last_coverage = last_year[region].iat[0] / 1000
+
+            if math.isnan(first_coverage):
+                growth = 'n/a'
+                delta_color = 'off'
+            else:
+                growth = f'{last_coverage / first_coverage:,.2f}x'
+                delta_color = 'normal'
+
+            st.metric(
+                label=f'{region} Coverage (1000s sq km)',
+                value=f'{last_coverage:,.0f}k',
+                delta=growth,
+                delta_color=delta_color
+            )
