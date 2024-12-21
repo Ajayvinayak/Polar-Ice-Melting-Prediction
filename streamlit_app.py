@@ -12,23 +12,20 @@ st.set_page_config(
 # Declare some useful functions.
 
 @st.cache_data
-def get_sea_data(uploaded_file, file_type):
-    """Grab sea region data from an uploaded file (CSV, XLS, XLSX)."""
-    if file_type == "csv":
-        raw_df = pd.read_csv(uploaded_file)
-    elif file_type in ["xls", "xlsx"]:
-        raw_df = pd.read_excel(uploaded_file)
-    else:
-        raise ValueError("Unsupported file type")
+def get_sea_data(uploaded_file):
+    """Grab sea region data from an uploaded CSV file."""
+    
+    # Read the uploaded CSV file
+    raw_df = pd.read_csv(uploaded_file)
+    
     return raw_df
 
 # File upload widget
-uploaded_file = st.file_uploader("Upload your sea region data file", type=["csv", "xls", "xlsx"])
+uploaded_file = st.file_uploader("Upload your sea region data CSV file", type="csv")
 
 if uploaded_file is not None:
-    file_type = uploaded_file.name.split('.')[-1].lower()
-    sea_df = get_sea_data(uploaded_file, file_type)
-
+    sea_df = get_sea_data(uploaded_file)
+    
     # ---------------------------------------------------------------------
     # Draw the actual page
 
@@ -115,7 +112,5 @@ if uploaded_file is not None:
                 delta=growth,
                 delta_color=delta_color
             )
-
- 
 
    
